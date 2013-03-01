@@ -124,11 +124,16 @@ void OW_Init(void) {
     USART_InitTypeDef USART_InitStructure;
 
     /* Enable clock for periphetials */
-    OW_GPIO_CLOCK();
+    OW_GPIO_TX_CLOCK();
+
+#ifndef OW_USE_SINGLE_PIN
+    OW_GPIO_RX_CLOCK();
+#endif
+
     OW_USART_CLOCK();
 
     /* Alternate function config on TX pin */
-    GPIO_PinAFConfig(OW_TX_PIN_PORT, OW_TX_PIN_PIN, OW_USART_AF);
+    GPIO_PinAFConfig(OW_TX_PIN_PORT, OW_TX_PIN_SOURCE, OW_USART_AF);
 
     /* TX pin configuration */
     GPIO_InitStruct.GPIO_Pin = OW_TX_PIN_PIN;
@@ -137,6 +142,16 @@ void OW_Init(void) {
     GPIO_InitStruct.GPIO_Speed = GPIO_Speed_100MHz;
     GPIO_InitStruct.GPIO_PuPd = GPIO_PuPd_UP;
     GPIO_Init(OW_TX_PIN_PORT, &GPIO_InitStruct);
+
+#ifndef OW_USE_SINGLE_PIN 
+    /* Alternate function config on RX pin */
+    GPIO_PinAFConfig(OW_RX_PIN_PORT, OW_RX_PIN_SOURCE, OW_USART_AF);
+    GPIO_InitStruct.GPIO_Pin = OW_RX_PIN_PIN;
+    GPIO_InitStruct.GPIO_Mode = GPIO_Mode_AF;
+    GPIO_InitStruct.GPIO_Speed = GPIO_Speed_100MHz;
+    GPIO_InitStruct.GPIO_PuPd = GPIO_PuPd_UP;
+    GPIO_Init(OW_RX_PIN_PORT, &GPIO_InitStruct);
+#endif
 
     /* USART configuration */
     USART_InitStructure.USART_BaudRate = 115200;
@@ -156,8 +171,10 @@ void OW_Init(void) {
     USART_Init(OW_USART, &USART_InitStructure);
     iUSART9600 = OW_USART->BRR;
 
+#ifdef OW_USE_SINGLE_PIN 
     /* Half duplex enable, for single pin communication */
     USART_HalfDuplexCmd(OW_USART, ENABLE);
+#endif
 
     /* USART enable */
     USART_Cmd(OW_USART, ENABLE);
@@ -236,10 +253,15 @@ void OW_ByteWrite(const uint8_t bByte) {
  * Set RX/TX pin into strong pull-up state.
  */
 void OW_StrongPullUp(void) {
-#if OW_PARASITE_POWERED
+#ifdef OW_USE_PARASITE_POWER
+
+#ifdef OW_USE_SINGLE_PIN 
     USART_HalfDuplexCmd(OW_USART, DISABLE);
+#endif
+
     GPIO_SetBits(OW_TX_PIN_PORT, OW_TX_PIN_PIN);
     OW_TX_PIN_PORT->OTYPER &= ~(OW_TX_PIN_PIN);
+
 #endif
 }
 
@@ -247,10 +269,15 @@ void OW_StrongPullUp(void) {
  * Set RX/TX pin into weak pull-up state.
  */
 void OW_WeakPullUp(void) {
-#if OW_PARASITE_POWERED
+#ifdef OW_USE_PARASITE_POWER
+
     GPIO_SetBits(OW_TX_PIN_PORT, OW_TX_PIN_PIN);
     OW_TX_PIN_PORT->OTYPER |= OW_TX_PIN_PIN;
+
+#ifdef OW_USE_SINGLE_PIN 
     USART_HalfDuplexCmd(OW_USART, ENABLE);
+#endif
+
 #endif
 }
 
@@ -359,11 +386,22 @@ uint64_t OW_SearchNext(void) {
             return 0;
         }
 
+
+
         /* Issue the search command */
         OW_ByteWrite(OW_ROM_SEARCH);
 
         /* Loop to do the search */
         do {
+
+#ifdef OW_USE_PARASITE_POWER
+#warning "FixMe: Charging IC, should work without this."
+            OW_StrongPullUp();
+            int i;
+            for (i = 0; i < 0xFFF; i++);
+            OW_WeakPullUp();
+#endif
+
             /* Read a bit and its complement */
             iIDBit = OW_BitRead();
             iCmpIDBit = OW_BitRead();
