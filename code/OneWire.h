@@ -61,32 +61,32 @@ extern "C" {
 #include "stm32f4xx_rcc.h"
 
     /* Enables parasite powered device support */
-#define OW_USE_PARASITE_POWER
+#define OW_USE_PARASITE_POWER   1
 
     /* Enables single pin communication */
-#define OW_USE_SINGLE_PIN
+#define OW_USE_SINGLE_PIN       1
 
     /* Has to be USART TX pin */
 #define OW_TX_PIN_PORT          GPIOD
-#define OW_TX_PIN_PIN           GPIO_Pin_5
-#define OW_TX_PIN_SOURCE        GPIO_PinSource5
+#define OW_TX_PIN_PIN           GPIO_Pin_8
+#define OW_TX_PIN_SOURCE        GPIO_PinSource8
 
 #ifndef OW_USE_SINGLE_PIN
     /* Has to be USART RX pin */
 #define OW_RX_PIN_PORT          GPIOD
-#define OW_RX_PIN_PIN           GPIO_Pin_6
-#define OW_RX_PIN_SOURCE        GPIO_PinSource6
+#define OW_RX_PIN_PIN           GPIO_Pin_9
+#define OW_RX_PIN_SOURCE        GPIO_PinSource9
 #endif
 
-#define OW_USART                USART2
-#define OW_USART_AF             GPIO_AF_USART2
+#define OW_USART                USART3
+#define OW_USART_AF             GPIO_AF_USART3
 
-#define OW_USART_CLOCK()        RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART2, ENABLE)
+#define OW_USART_CLOCK()        RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART3, ENABLE)
 
-#define OW_GPIO_TX_CLOCK()      RCC_APB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE)
+#define OW_GPIO_TX_CLOCK()      RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE)
 
 #ifndef OW_USE_SINGLE_PIN
-#define OW_GPIO_RX_CLOCK()      RCC_APB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE)
+#define OW_GPIO_RX_CLOCK()      RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE)
 #endif
 
     /**************************************************************************/
@@ -95,9 +95,8 @@ extern "C" {
 #define OW_ADDRESS_ALL              0
 
     typedef enum _OW_State {
-        OW_OK = 0,
-        OW_PRESENT,
-        OW_NO_DEV,
+        OW_OK,
+        OW_NO_DEV = 0,
         OW_CRC_ERROR
     } OW_State;
 

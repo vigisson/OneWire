@@ -71,6 +71,7 @@
  */
 
 #include "OneWire.h"
+#include "stm32f407_precise_board.h"
 
 /* Bus specific commands */
 #define OW_ROM_READ         0x33
@@ -85,7 +86,7 @@
 #define OW_1                0xFF
 
 /* Search related variables */
-struct {
+static struct {
     uint8_t iLastDeviceFlag;
     uint8_t iLastDiscrepancy;
     uint8_t iLastFamilyDiscrepancy;
@@ -93,8 +94,8 @@ struct {
 } stSearch;
 
 /* Backup of BRR register for different communication speeds*/
-uint16_t iUSART9600;
-uint16_t iUSART115200;
+static uint16_t iUSART9600;
+static uint16_t iUSART115200;
 
 /* CRC calculation table */
 static uint8_t CRCTable[] = {
@@ -138,8 +139,8 @@ void OW_Init(void) {
     /* TX pin configuration */
     GPIO_InitStruct.GPIO_Pin = OW_TX_PIN_PIN;
     GPIO_InitStruct.GPIO_Mode = GPIO_Mode_AF;
-    GPIO_InitStruct.GPIO_OType = GPIO_OType_OD;
-    GPIO_InitStruct.GPIO_Speed = GPIO_Speed_100MHz;
+    GPIO_InitStruct.GPIO_OType = GPIO_OType_PP;
+    GPIO_InitStruct.GPIO_Speed = GPIO_Speed_50MHz;
     GPIO_InitStruct.GPIO_PuPd = GPIO_PuPd_UP;
     GPIO_Init(OW_TX_PIN_PORT, &GPIO_InitStruct);
 
@@ -148,12 +149,12 @@ void OW_Init(void) {
     GPIO_PinAFConfig(OW_RX_PIN_PORT, OW_RX_PIN_SOURCE, OW_USART_AF);
     GPIO_InitStruct.GPIO_Pin = OW_RX_PIN_PIN;
     GPIO_InitStruct.GPIO_Mode = GPIO_Mode_AF;
-    GPIO_InitStruct.GPIO_Speed = GPIO_Speed_100MHz;
-    GPIO_InitStruct.GPIO_PuPd = GPIO_PuPd_UP;
     GPIO_Init(OW_RX_PIN_PORT, &GPIO_InitStruct);
 #endif
 
     /* USART configuration */
+    USART_StructInit(&USART_InitStructure);
+    
     USART_InitStructure.USART_BaudRate = 115200;
     USART_InitStructure.USART_WordLength = USART_WordLength_8b;
     USART_InitStructure.USART_StopBits = USART_StopBits_1;
@@ -166,7 +167,6 @@ void OW_Init(void) {
     iUSART115200 = OW_USART->BRR;
 
     /* BRR register backup for 9600 Baud */
-    USART_StructInit(&USART_InitStructure);
     USART_InitStructure.USART_BaudRate = 9600;
     USART_Init(OW_USART, &USART_InitStructure);
     iUSART9600 = OW_USART->BRR;
@@ -283,7 +283,7 @@ void OW_WeakPullUp(void) {
 
 /**
  * Communication reset and device presence detection.
- * @return OW_PRESENT if device found or OW_NO_DEV if not.
+ * @return OW_OK if device found or OW_NO_DEV if not.
  */
 OW_State OW_Reset(void) {
     uint8_t iPresence;
@@ -308,7 +308,7 @@ OW_State OW_Reset(void) {
 
     /* If received data is equal to data transmitted means that there in no
      device present on the bus. Return value equal to 0 means bus error. */
-    if ((iPresence != OW_R) && ((iPresence != 0x00))) return OW_PRESENT;
+    if ((iPresence != OW_R) && ((iPresence != 0x00))) return OW_OK;
 
     return OW_NO_DEV;
 }
@@ -378,7 +378,7 @@ uint64_t OW_SearchNext(void) {
     /* If the last call was not the last one */
     if (!stSearch.iLastDeviceFlag) {
         /* 1-Wire reset */
-        if (!OW_Reset()) {
+        if (OW_Reset() == OW_NO_DEV) {
             /* Reset the search */
             stSearch.iLastDiscrepancy = 0;
             stSearch.iLastDeviceFlag = 0;
@@ -397,8 +397,8 @@ uint64_t OW_SearchNext(void) {
 #ifdef OW_USE_PARASITE_POWER
 #warning "FixMe: Charging IC, should work without this."
             OW_StrongPullUp();
-            int i;
-            for (i = 0; i < 0xFFF; i++);
+            __IO int i;
+            for (i = 0; i < 0xFFFF; i++);
             OW_WeakPullUp();
 #endif
 
